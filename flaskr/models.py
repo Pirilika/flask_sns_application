@@ -54,6 +54,7 @@ class User(UserMixin, db.Model): # サイトだとなんかDeclaraticeBaseのド
         self.is_active = True
 
 
+#ToDo add, commitはすべてserviceに移す
 class PasswordResetToken(db.Model):
     __tablename__ = 'password_reset_tokens'
 
