@@ -53,7 +53,7 @@ class RegisterForm(Form):
     )
 
     def validate_email(self, field):
-        if User.select_user_by_email(field.data):
+        if User.find_by_email(field.data):
             raise ValidationError('このメールアドレスは既に登録されています')
         
 

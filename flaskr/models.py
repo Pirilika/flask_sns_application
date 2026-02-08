@@ -3,14 +3,19 @@ import os
 from flaskr import db, login_manager
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, select
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey
 
 from datetime import timedelta, datetime, timezone
 from uuid import uuid4
 
 
-class User(UserMixin, db.Model): # サイトだとなんかDeclaraticeBaseのドキュメントのほうが多い
+class InvalidPassword(Exception):
+    pass
+
+# データ取得と更新を行う
+# commitやトランザクション処理はservice側に任せる
+class User(UserMixin, db.Model):
     
     __tablename__ = 'users'
 
@@ -35,26 +40,30 @@ class User(UserMixin, db.Model): # サイトだとなんかDeclaraticeBaseのド
         )
 
     @classmethod
-    def select_user_by_email(cls, email):
+    def find_by_email(cls, email):
         stmt = db.select(cls).where(cls.email == email)
         return db.session.scalar(stmt)
     
     @classmethod
-    def select_user_by_id(cls, id):
+    def find_by_id(cls, id):
         return db.session.get(User, id)
     
     def validate_password(self, password):
+        if self.password is None:
+            return False
+        
         return check_password_hash(self.password, password)
 
     def create_new_user(self):
         db.session.add(self)
 
     def save_new_password(self, new_password):
+        if not new_password and len(new_password) < 8:
+            raise InvalidPassword()
         self.password = generate_password_hash(new_password)
         self.is_active = True
 
 
-#ToDo add, commitはすべてserviceに移す
 class PasswordResetToken(db.Model):
     __tablename__ = 'password_reset_tokens'
 
@@ -72,7 +81,7 @@ class PasswordResetToken(db.Model):
 
     def __init__(self, user_id):
         self.user_id = user_id
-        # token生成はここでのみ行う。二重生成には気を付ける。
+        # token生成はここでのみ行う。呼び出されるまで他のクラスやメソッドはtokenを知らない。
         self.token = str(uuid4())
 
         now_time = datetime.now(timezone.utc)
@@ -83,7 +92,6 @@ class PasswordResetToken(db.Model):
     def publish_token(cls, user):
         new_token = cls(user.id) 
         db.session.add(new_token)
-        db.session.commit()
         return new_token.token
     
     @classmethod
@@ -104,5 +112,6 @@ class PasswordResetToken(db.Model):
     def delete_token(cls, token):
         stmt = db.select(cls).where(cls.token == token)
         del_token = db.session.execute(stmt).scalar_one_or_none()
-        db.session.delete(del_token)
+        if del_token:
+            db.session.delete(del_token)
         
