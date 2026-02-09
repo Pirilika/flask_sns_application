@@ -20,13 +20,6 @@ class LoginForm(Form):
         'パスワード: ',
         validators=[
             DataRequired(),
-            EqualTo('confirm_password', message='パスワードが一致しません')
-        ]
-    )
-    confirm_password = PasswordField(
-        'パスワード再入力: ',
-        validators=[
-            DataRequired()
         ]
     )
     submit = SubmitField(

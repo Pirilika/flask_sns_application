@@ -6,9 +6,12 @@ from flask_login import UserMixin
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey
 
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime
 from uuid import uuid4
 
+
+class UserNotFound(Exception):
+    pass
 
 class InvalidPassword(Exception):
     pass
@@ -31,12 +34,12 @@ class User(UserMixin, db.Model):
     is_active: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     create_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc)
+        default=lambda: datetime.now()
         )
     update_at: Mapped[datetime] = mapped_column(
         DateTime, 
-        default=lambda: datetime.now(timezone.utc), 
-        onupdate=lambda: datetime.now(timezone.utc)
+        default=lambda: datetime.now(), 
+        onupdate=lambda: datetime.now()
         )
 
     @classmethod
@@ -58,7 +61,7 @@ class User(UserMixin, db.Model):
         db.session.add(self)
 
     def save_new_password(self, new_password):
-        if not new_password and len(new_password) < 8:
+        if not new_password or len(new_password) < 8:
             raise InvalidPassword()
         self.password = generate_password_hash(new_password)
         self.is_active = True
@@ -84,25 +87,36 @@ class PasswordResetToken(db.Model):
         # token生成はここでのみ行う。呼び出されるまで他のクラスやメソッドはtokenを知らない。
         self.token = str(uuid4())
 
-        now_time = datetime.now(timezone.utc)
+        now_time = datetime.now()
         self.create_at = now_time
         self.expire_at = now_time + timedelta(days=1)
 
     @classmethod
     def publish_token(cls, user):
+        cls.delete_user_tokens(user.id)
         new_token = cls(user.id) 
         db.session.add(new_token)
         return new_token.token
     
     @classmethod
+    def delete_user_tokens(cls, user_id):
+        stmt = db.select(cls).where(cls.user_id == user_id)
+        for del_token in db.session.execute(stmt).scalars():
+            db.session.delete(del_token)
+    
+    @classmethod
     def get_user_id_by_token(cls, token):
+        print(token)
         stmt = db.select(cls).where(cls.token == token)
         record = db.session.execute(stmt).scalar_one_or_none()
+        print(stmt, record)
 
         if record is None:
             return None
 
-        if record.expire_at <= datetime.now(timezone.utc):
+        now_time = datetime.now()
+        print(type(record.expire_at), type(now_time))
+        if record.expire_at <= now_time:
             cls.delete_token(token)
             return None
         
@@ -114,4 +128,5 @@ class PasswordResetToken(db.Model):
         del_token = db.session.execute(stmt).scalar_one_or_none()
         if del_token:
             db.session.delete(del_token)
-        
+
+    

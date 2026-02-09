@@ -1,7 +1,5 @@
-from flask import flash
-
 from flaskr import db
-from models import User, PasswordResetToken
+from flaskr.models import User, PasswordResetToken
 
 # 認証エラー
 class AuthenticationError(Exception):
@@ -27,15 +25,15 @@ class InvalidResetToken(Exception):
 
 class UserService():
     @classmethod
-    def register(cls, form):
+    def register(cls, username, email):
         user = User(
-            username = form.username.data,
-            email = form.email.data  
+            username = username,
+            email = email 
         )
-
-        with db.session.begin():
-            user.create_new_user()
-
+        print(1.1)
+        user.create_new_user()
+        db.session.commit()
+            
         return user
     
     @classmethod
@@ -59,35 +57,33 @@ class PasswordResetTokenService():
     def send_password_reset_token(cls, user):
         token = None
         with db.session.begin():
-            token = cls._create_token(user)
+            token = PasswordResetToken.publish_token(user)
 
         if not token:
             raise TokenNotFoundError('トークンを作成できませんでした')
 
-        print(f'パスワード設定用URL: http://127.0.0:5000/reset_password/{token}')
+        print(f'パスワード設定用URL: http://127.0.1:5000/reset_password/{token}')
         return token 
-
-    @classmethod
-    def _create_token(cls, user):
-        with db.session.begin():
-            token = PasswordResetToken.publish_token(user)
-
-        return token
     
 
 class PasswordResetService():
     @classmethod
     def get_user(cls, token):
-        #? 結合は大がかりかも
-        user_id = PasswordResetToken.get_user_id_by_token(token) #? 見つからないとき例外を出す処理をmodelに記述してもおK？
-        if user_id:
-            user = User.find_by_id(user_id)
-            return user
-        else:
-            raise InvalidResetToken
+        print(5.4)
+        user_id = PasswordResetToken.get_user_id_by_token(token) 
+        print(5.5, user_id)
+        if not user_id:
+            raise InvalidResetToken()
+        
+        user = User.find_by_id(user_id)
+        if not user:
+            raise InvalidResetToken()
+        
+        return user
 
     @classmethod
     def set_new_password(cls, user, password, token):
-        with db.session.begin():
-            user.save_new_password(password)
-            PasswordResetToken.delete_token(token)
+        print(user, password, token)
+        user.save_new_password(password)
+        PasswordResetToken.delete_token(token)
+        db.session.commit()
