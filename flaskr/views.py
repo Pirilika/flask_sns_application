@@ -5,12 +5,13 @@ from flask import (
 from flask_login import login_user, logout_user, login_required
 
 from flaskr.forms import (
-    LoginForm, RegisterForm, ResetPasswordForm,
+    LoginForm, RegisterForm, ResetPasswordForm, ForgotPasswordForm
 )
 from flaskr.service import (
     UserService, UserNotFoundError,
     PasswordResetTokenService, InactiveUserError, InvalidPasswordError, TokenNotFoundError,
-    PasswordResetService, InvalidResetToken
+    PasswordResetService, InvalidResetToken,
+    ForgotPasswordService
 )
 
 
@@ -56,18 +57,13 @@ def register():
 
     if request.method == 'POST' and form.validate():
         try:
-            print(1)
             user = UserService.register(form.username.data, form.email.data)
-            print(2)
             PasswordResetTokenService.send_password_reset_token(user)
-            print(3)
             flash('パスワード設定用のURLを送りしました。ご確認お願いします。')
-            print(4)
             return redirect(url_for('app.login'))
         except TokenNotFoundError as e:
             flash('トークンを作成できませんでした')
         except Exception as e:
-            print(e)
             flash("登録に失敗しました")
     
     return render_template('register.html', form=form)
@@ -75,28 +71,39 @@ def register():
 
 @bp.route('/reset_password/<uuid:token>', methods=['GET', 'POST'])
 def reset_password(token):
-    print('5')
     try:
         token = str(token)
-        print('5.1')
         form = ResetPasswordForm(request.form)
-        print('5.2')
         user = PasswordResetService.get_user(token)
-        print('5.3', user)
     except InvalidResetToken as e:
         print(e)
         abort(404)
 
     if request.method == 'POST' and form.validate():
         try:
-            print(6)
             PasswordResetService.set_new_password(user, form.password.data, token)
-            print(6.1)
             flash('パスワードを更新しました')
-            print(6.2)
             return redirect(url_for('app.login'))
             
         except Exception:
             flash('更新に失敗しました')
 
     return render_template('reset_password.html', form=form)
+
+
+@bp.route('forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    form = ForgotPasswordForm(request.form)
+    if request.method == 'POST' and form.validate():
+        try:
+            ForgotPasswordService.send_password_reset_token(form.email.data)
+            flash('パスワード再登録用のURLを発行しました')
+            return render_template('app.login')
+        except TokenNotFoundError as e:
+            print(e)
+            flash('トークンを作成できませんでした')
+        except Exception as e:
+            print(e)
+            flash("登録に失敗しました")
+
+    return render_template('forgot_password.html', form=form)

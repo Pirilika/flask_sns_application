@@ -30,7 +30,6 @@ class UserService():
             username = username,
             email = email 
         )
-        print(1.1)
         user.create_new_user()
         db.session.commit()
             
@@ -56,22 +55,20 @@ class PasswordResetTokenService():
     @classmethod
     def send_password_reset_token(cls, user):
         token = None
-        with db.session.begin():
-            token = PasswordResetToken.publish_token(user)
+        token = PasswordResetToken.publish_token(user)
+        db.session.commit()
 
         if not token:
             raise TokenNotFoundError('トークンを作成できませんでした')
 
-        print(f'パスワード設定用URL: http://127.0.1:5000/reset_password/{token}')
+        print(f'パスワード設定用URL: http://127.0.0.1:5000/reset_password/{token}')
         return token 
     
 
 class PasswordResetService():
     @classmethod
     def get_user(cls, token):
-        print(5.4)
         user_id = PasswordResetToken.get_user_id_by_token(token) 
-        print(5.5, user_id)
         if not user_id:
             raise InvalidResetToken()
         
@@ -83,7 +80,13 @@ class PasswordResetService():
 
     @classmethod
     def set_new_password(cls, user, password, token):
-        print(user, password, token)
         user.save_new_password(password)
         PasswordResetToken.delete_token(token)
         db.session.commit()
+
+
+class ForgotPasswordService():
+    @classmethod
+    def send_password_reset_token(cls, email):
+        user = User.find_by_email(email)
+        PasswordResetTokenService.send_password_reset_token(user)
