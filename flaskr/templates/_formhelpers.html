@@ -2,7 +2,7 @@
 <dt>
     {{ field.label }}
     <dd>
-        {{ field(**kwargs) | safe }}
+        {{ field() | safe }}
         {% if field.errors %}
             <ul class="errors">
                 {% for error in field.errors%}
