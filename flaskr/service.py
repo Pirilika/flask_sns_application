@@ -111,7 +111,7 @@ class UpdateUserInfoService():
         user.username = new_username
         user.email = new_email
         
-        if new_file_data and new_file_data.filename:
+        if new_file_data['filename'] and new_file_data['filedata']:
             cls._updatefile_flow(user, new_file_data)
 
         db.session.commit()
@@ -125,13 +125,13 @@ class UpdateUserInfoService():
     def _save_picture_file(cls, user, file_data):
         cls._delete_old_file(user)
 
-        ext = os.path.splitext(secure_filename(file_data.filename))[1]
+        ext = os.path.splitext(secure_filename(file_data['filename']))[1]
         file_name = f'{user.id}_{int(datetime.now().timestamp())}.{ext}'
 
         picture_path = os.path.join('flaskr/static/user_image/', file_name)
 
         with open(picture_path, 'wb') as f:
-            f.write(file_data.read())
+            f.write(file_data['filedata'])
 
         return f'user_image/{file_name}'
 
@@ -161,3 +161,4 @@ class ChangePasswordService():
         
         user.save_new_password(new_password)
         db.session.commit()
+        

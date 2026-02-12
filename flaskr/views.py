@@ -7,7 +7,7 @@ from werkzeug.datastructures import CombinedMultiDict
 
 from flaskr.forms import (
     LoginForm, RegisterForm, ResetPasswordForm, ForgotPasswordForm,
-    UserForm
+    UserForm, ChangePasswordForm
 )
 from flaskr.service import (
     UserService, UserNotFoundError,
@@ -22,6 +22,7 @@ from flaskr.service import (
 bp = Blueprint('app', __name__, url_prefix='')
 
 # ここから直接modelsとdbにアクセスしないようにする
+# formの分解と読み込みはここで行う。他クラスはformの中身を知らない
 @bp.route('/')
 def home():
     return render_template('home.html')
@@ -124,11 +125,15 @@ def user():
 
     if request.method == 'POST' and form.validate():
         try:
-            file_data = form.picture_file.data
+            file_storage = form.picture_file.data
+            file_data = {
+                'filename': file_storage.filename, 
+                'filedata': file_storage.read()
+            }
             UpdateUserInfoService.update_flow(
                 form.username.data, 
                 form.email.data, 
-                file_data
+                file_data 
             )
             flash('ユーザー情報の更新に成功しました')
         except UserNotFoundError as e:
@@ -145,7 +150,7 @@ def user():
 @bp.route('/change_password', methods=['GET', 'POST'])
 @login_required
 def change_password():
-    form = ResetPasswordForm(request.form)
+    form = ChangePasswordForm(request.form) 
     
     if request.method == 'POST' and form.validate():
         try:
@@ -157,6 +162,18 @@ def change_password():
             flash('更新に失敗しました。再ログインしてください')
             return redirect(url_for('app.login'))
         except Exception as e:
+            print(e)
             flash('更新に失敗しました')
+            return redirect(url_for('app.user')) # abort servererror
     
     return render_template('change_password.html', form=form)
+
+
+@bp.app_errorhandler(404)
+def page_not_found(e):
+    return redirect(url_for('app.home'))
+
+
+@bp.app_errorhandler(500)
+def sever_error(e):
+    return render_template('500.html'), 500

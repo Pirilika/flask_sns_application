@@ -121,3 +121,36 @@ class UserForm(Form):
             return True
         
         raise ValidationError('そのメールアドレスは既に登録されています')
+    
+
+class ChangePasswordForm(Form):
+    old_password = PasswordField(
+        '現在のパスワード',
+        validators=[
+            DataRequired()
+        ]
+    )
+    password = PasswordField(
+        'パスワード',
+        validators=[
+            DataRequired(),
+            EqualTo('confirm_password', message='パスワードが一致しません'),
+        ]
+    )
+    confirm_password = PasswordField(
+        'パスワード確認: ',
+        validators=[
+            DataRequired()
+        ]
+    )
+    submit = SubmitField(
+        'パスワードを更新する'
+    )
+
+    def validate_old_password(self, field):
+        if not current_user.validate_password(field.data):
+            raise ValidationError('現在のパスワードが違います')
+
+    def validate_password(self, field):
+        if len(field.data) < 8:
+            raise ValidationError('パスワードは8文字以上である必要があります')

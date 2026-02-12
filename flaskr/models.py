@@ -1,6 +1,6 @@
 import os
 
-from flaskr import db, login_manager
+from flaskr import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from sqlalchemy.orm import Mapped, mapped_column
@@ -84,7 +84,7 @@ class PasswordResetToken(db.Model):
 
     def __init__(self, user_id):
         self.user_id = user_id
-        # token生成はここでのみ行う。呼び出されるまで他のクラスやメソッドはtokenを知らない。
+        # token生成はインスタンス作成と同時に行う。呼び出されるまで他のクラスやメソッドはtokenを知らない。
         self.token = str(uuid4())
 
         now_time = datetime.now()
